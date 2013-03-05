@@ -177,7 +177,6 @@ char *get_uri(char *req_header, char *uri_buf)
 	strcpy(path,WEB_ROOT);
 	strcat(path,uri_buf);
 	strcpy(uri_buf,path);
-	printf("GET_URL:%s",uri_buf);
 	return uri_buf;
 
 }
@@ -198,8 +197,7 @@ int get_uri_status(char *uri)
 	return FILE_OK;
 }
 
-
-char *get_mime_type(char *uri)
+char *get_url_ext(char *uri)
 {
 	int len = strlen(uri);
 	int dot = len - 1;
@@ -216,65 +214,82 @@ char *get_mime_type(char *uri)
 		return "text/html";
 	}
 	dot++;
-	int type_len = len - dot;
 	char *type_off = uri + dot;
-	switch(type_len)
-	{
-		case 4:
-		  if(!strcmp(type_off, "html") || !strcmp(type_off, "HTML"))
-		  {
-			return "text/html";
-		  }
-		  if(!strcmp(type_off, "jpeg") || !strcmp(type_off, "JPEG"))
-		  {
-			return "image/jpeg";
-		  }
-		  break;
-		case 3:
-		  if(!strcmp(type_off, "htm") || !strcmp(type_off, "HTM"))
-		  {
-			return "text/html";
-		  }
-		  if(!strcmp(type_off, "css") || !strcmp(type_off, "CSS"))
-		  {
-			return "text/css";
-		  }
-		  if(!strcmp(type_off, "png") || !strcmp(type_off, "PNG"))
-		  {
-			return "image/png";
-		  }
-		  if(!strcmp(type_off, "jpg") || !strcmp(type_off, "JPG"))
-		  {
-			return "image/jpeg";
-		  }
-		  if(!strcmp(type_off, "gif") || !strcmp(type_off, "GIF"))
-		  {
-			return "image/gif";
-		  }
-		  if(!strcmp(type_off, "txt") || !strcmp(type_off, "TXT"))
-		  {
-			return "text/plain";
-		  }
-		  break;
-		case 2:
-		  if(!strcmp(type_off, "js") || !strcmp(type_off, "JS"))
-		  {
-			return "text/javascript";
-		  }
-		  break;
-		default:		/* unknown mime type or server do not support type now*/
-		  return "NULL";
-		  break;
-	}
+	return strdup(type_off);
+}
 
+char *get_mime_type(char *uri)
+{
+	char *type_off = get_url_ext(uri);
+
+	if(!strcmp(type_off, "html") || !strcmp(type_off, "HTML"))
+	{
+		return "text/html";
+	}
+	if(!strcmp(type_off, "jpeg") || !strcmp(type_off, "JPEG"))
+	{
+		return "image/jpeg";
+	}
+	if(!strcmp(type_off, "htm") || !strcmp(type_off, "HTM"))
+	{
+		return "text/html";
+	}
+	if(!strcmp(type_off, "css") || !strcmp(type_off, "CSS"))
+	{
+		return "text/css";
+	}
+	if(!strcmp(type_off, "png") || !strcmp(type_off, "PNG"))
+	{
+		return "image/png";
+	}
+	if(!strcmp(type_off, "jpg") || !strcmp(type_off, "JPG"))
+	{
+		return "image/jpeg";
+	}
+	if(!strcmp(type_off, "gif") || !strcmp(type_off, "GIF"))
+	{
+		return "image/gif";
+	}
+	if(!strcmp(type_off, "txt") || !strcmp(type_off, "TXT"))
+	{
+		return "text/plain";
+	}
+	if(!strcmp(type_off, "php") || !strcmp(type_off, "PHP"))
+	{
+		return "text/plain";
+	}
+	if(!strcmp(type_off, "js") || !strcmp(type_off, "JS"))
+	{
+		return "text/javascript";
+	}
 	return NULL;
 }
 
+int get_php_cgi(char *uri, unsigned char *file_buf)
+{
+	putenv("GATEWAY_INTERFACE=CGI/1.1");
+	putenv("SCRIPT_FILENAME=/home/administrator/code/tinyweb/webroot/cgi/bb.php");
+	putenv("QUERY_STRING=ffff");
+	putenv("REQUEST_METHOD=GET");
+	putenv("REDIRECT_STATUS=true");
+	putenv("SERVER_PROTOCOL=HTTP/1.1");
+	putenv("REMOTE_HOST=127.0.0.1");
+	execl("/usr/bin/php-cgi","php-cgi",NULL);
+	return 100;
+}
 
 int get_file_disk(char *uri, unsigned char *file_buf)
 {
 	int read_count = 0;
 	int fd = open(uri, O_RDONLY);
+
+	//php-cgi
+	char *uri_ext = get_url_ext(uri);
+	if(!strcmp(uri_ext, "php") || !strcmp(uri_ext, "PHP"))
+	{
+		read_count = get_php_cgi(uri,file_buf);
+		return read_count;
+	}
 	if(fd == -1)
 	{
 		perror("open() in get_file_disk http_session.c");
@@ -363,7 +378,7 @@ int set_error_information(unsigned char *send_buf, int errorno)
 
 int reply_normal_information(unsigned char *send_buf, unsigned char *file_buf, int file_size,  char *mime_type)
 {
-	char *str =  "HTTP/1.1 200 OK\r\nServer:Mutu/Linux(0.1)\r\nDate:";
+	char *str =  "HTTP/1.1 200 OK\r\nServer:TinyWeb/Huanglin(1.0)\r\nDate:";
 	register int index = strlen(str);
 	memcpy(send_buf, str, index);
 
