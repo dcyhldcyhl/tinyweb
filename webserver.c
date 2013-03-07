@@ -5,14 +5,23 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "get_time.h"
 #include "init_socket.h"
 #include "http_session.h"
 
-
-
+void handler(int num)
+{
+       //接受到的SIGCHLD信号
+        int status;
+        int pid = waitpid(-1, &status, WNOHANG);
+        if (WIFEXITED(status))
+        {
+            printf("The child %d exit with code %d\n", pid, WEXITSTATUS(status));
+        }
+}
 
 int main(int argc, char *argv[])
 {
@@ -44,7 +53,7 @@ int main(int argc, char *argv[])
 
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 	pid_t pid;
-
+	signal(SIGCHLD, handler);//回收子进程
 	while(1)
 	{
 		if((connect_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &addrlen)) == -1)
@@ -68,7 +77,7 @@ int main(int argc, char *argv[])
 				printf("pid %d loss connection to %s\n", getpid(), inet_ntoa(client_addr.sin_addr));
 				exit(EXIT_FAILURE);		/* exit from child process, stop this http session  */
 			}
-		
+			close(connect_fd);
 			printf("pid %d close connection to %s\n", getpid(), inet_ntoa(client_addr.sin_addr));
 			shutdown(connect_fd, SHUT_RDWR);
 			exit(EXIT_SUCCESS);

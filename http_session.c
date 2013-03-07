@@ -16,15 +16,16 @@ int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 {
 	char recv_buf[RECV_BUFFER_SIZE + 1];			/* server socket receive buffer */
 	unsigned char send_buf[SEND_BUFFER_SIZE + 1];	/* server socket send bufrer */
-	unsigned char file_buf[FILE_MAX_SIZE + 1];
+	char file_buf[FILE_MAX_SIZE + 1];
 	memset(recv_buf, '\0', sizeof(recv_buf));
 	memset(send_buf, '\0', sizeof(send_buf));
 	memset(file_buf, '\0', sizeof(file_buf));
 
-	char uri_buf[URI_SIZE + 1];						/* store the the uri request from client */
+	char uri_buf[URI_SIZE + 1];
+	char query_buf[URI_SIZE];
 	memset(uri_buf, '\0', sizeof(uri_buf));
-
-	int maxfd = *connect_fd + 1;
+	memset(query_buf, '\0', sizeof(query_buf));
+	int maxfd;
 	fd_set read_set;
 	FD_ZERO(&read_set);
 
@@ -43,8 +44,11 @@ int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 	FD_SET(*connect_fd, &read_set);
 	while(flag)
 	{
-		
-		res = select(maxfd, &read_set, NULL, NULL, &timeout);
+		maxfd = *connect_fd + 1;
+		FD_ZERO(&read_set); //每次循环都要清空集合，否则不能检测描述符变化
+		FD_SET(*connect_fd, &read_set); //添加描述符
+		res = select(maxfd, &read_set, &read_set, NULL, &timeout);
+		printf("RES:%d\n",res);
 		switch(res)
 		{
 			case -1:
@@ -53,7 +57,7 @@ int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 			  return -1;
 			  break;
 			case 0:			/* time out, continue to select */
-			  continue;
+			  //continue;
 			  break;
 			default:		/* there are some file-descriptor's status changed */
 			  if(FD_ISSET(*connect_fd, &read_set))
@@ -72,10 +76,9 @@ int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 						close(*connect_fd);
 						return -1;
 					}
-					else		/* http protocol  */
+					else
 					{
-						memset(uri_buf, '\0', sizeof(uri_buf));
-
+						printf("%s\n",recv_buf);
 						if(get_uri(recv_buf, uri_buf) == NULL)	/* get the uri from http request head */
 						{
 							uri_status = URI_TOO_LONG;
@@ -83,9 +86,8 @@ int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 						}
 						else
 						{
-
 							uri_status = get_uri_status(uri_buf);
-							printf("URL:%s\n", uri_buf);
+							printf("Get_URL:%s\n", uri_buf);
 							switch(uri_status)
 							{
 								case FILE_OK:
@@ -117,9 +119,10 @@ int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 					}
 				}
 			  }
+			  break;
 
 		}
-
+		break;
 	}
 
 	return 0;
@@ -178,18 +181,64 @@ char *get_uri(char *req_header, char *uri_buf)
 	strcat(path,uri_buf);
 	strcpy(uri_buf,path);
 	return uri_buf;
+}
 
+char *get_uri_query(char *req_header)
+{
+	int index = 0;
+	if(strchr(req_header,'?')==0)
+	{
+		return NULL;
+	}
+	char query_buf[RECV_BUFFER_SIZE];
+	memset(query_buf,'\0',sizeof(query_buf));
+	while(req_header[index] != '?')
+	{
+		index++;
+	}
+	int base = index;
+	while( ((index - base) < URI_SIZE) && (req_header[index] != ' ')&& (req_header[index] != '\0') )
+	{
+		index++;
+	}
+	if( (index - base) >= URI_SIZE)
+	{
+		return NULL;
+	}
+	strncpy(query_buf, req_header + base + 1, index - base - 1);
+	return strdup(query_buf);
+}
+
+char *get_uri_file(char *req_header)
+{
+	int index = 0;
+	if(strchr(req_header,'?')==0)
+	{
+		return req_header;
+	}
+	char uri_buf[RECV_BUFFER_SIZE];
+	memset(uri_buf,'\0',sizeof(uri_buf));
+	int base = index;
+	while( ((index - base) < URI_SIZE) && (req_header[index] != ' ')&& (req_header[index] != '?') && (req_header[index] != '\0') )
+	{
+		index++;
+	}
+	strncpy(uri_buf, req_header + base, index - base );
+	return strdup(uri_buf);
 }
 
 
 int get_uri_status(char *uri)
 {
-	if(access(uri, F_OK) == -1)
+	char *uri_file;
+	uri_file = get_uri_file(uri);
+	printf("uri_status:%s\n",uri_file);
+	if(access(uri_file, F_OK) == -1)
 	{
 		fprintf(stderr, "File: %s not found.\n", uri);
 		return FILE_NOT_FOUND;
 	}
-	if(access(uri, R_OK) == -1)
+	if(access(uri_file, R_OK) == -1)
 	{
 		fprintf(stderr, "File: %s can not read.\n", uri);
 		return FILE_FORBIDEN;
@@ -199,9 +248,10 @@ int get_uri_status(char *uri)
 
 char *get_url_ext(char *uri)
 {
-	int len = strlen(uri);
+	char *url_file = get_uri_file(uri);
+	int len = strlen(url_file);
 	int dot = len - 1;
-	while( dot >= 0 && uri[dot] != '.')
+	while( dot >= 0 && url_file[dot] != '.')
 	{
 		dot--;
 	}
@@ -214,14 +264,13 @@ char *get_url_ext(char *uri)
 		return "text/html";
 	}
 	dot++;
-	char *type_off = uri + dot;
+	char *type_off = url_file + dot;
 	return strdup(type_off);
 }
 
 char *get_mime_type(char *uri)
 {
 	char *type_off = get_url_ext(uri);
-
 	if(!strcmp(type_off, "html") || !strcmp(type_off, "HTML"))
 	{
 		return "text/html";
@@ -256,7 +305,7 @@ char *get_mime_type(char *uri)
 	}
 	if(!strcmp(type_off, "php") || !strcmp(type_off, "PHP"))
 	{
-		return "text/plain";
+		return "text/html";
 	}
 	if(!strcmp(type_off, "js") || !strcmp(type_off, "JS"))
 	{
@@ -265,29 +314,76 @@ char *get_mime_type(char *uri)
 	return NULL;
 }
 
-int get_php_cgi(char *uri, unsigned char *file_buf)
+
+int get_php_cgi(char *uri, char *file_buf)
 {
+	FILE *fp;
+	int i=0;
+	char line[RECV_BUFFER_SIZE];
+	char cgi_buf[SEND_BUFFER_SIZE];
+	char *powerd = "X-Powered-By:";
+	char *content_type = "Content-type:";
+	char script_filename[URI_SIZE]="SCRIPT_FILENAME=";
+	char query_string[URI_SIZE] = "QUERY_STRING=";
+	char *uri_file = get_uri_file(uri);
+	char *uri_query = get_uri_query(uri);
+	strcat(script_filename,uri_file);
+	if(uri_query != NULL)
+	{
+		strcat(query_string,uri_query);
+	}
+	memset(cgi_buf,'\0',sizeof(cgi_buf));
+	memset(line,'\0',sizeof(line));
 	putenv("GATEWAY_INTERFACE=CGI/1.1");
-	putenv("SCRIPT_FILENAME=/home/administrator/code/tinyweb/webroot/cgi/bb.php");
-	putenv("QUERY_STRING=ffff");
+	putenv(script_filename);
+	putenv(query_string);
 	putenv("REQUEST_METHOD=GET");
 	putenv("REDIRECT_STATUS=true");
 	putenv("SERVER_PROTOCOL=HTTP/1.1");
 	putenv("REMOTE_HOST=127.0.0.1");
-	execl("/usr/bin/php-cgi","php-cgi",NULL);
-	return 100;
+	fp = popen("/usr/bin/php-cgi","r");
+	while(1)
+	{
+		fgets(line,sizeof(line),fp);
+		if(i<2)
+		{
+			if(strstr(line,powerd)!=0)
+			{
+				continue;
+			}
+			if(strstr(line,content_type)!=0)
+			{
+				continue;
+			}
+		}
+		i++;
+		if(!feof(fp))
+		{
+			strcat(cgi_buf,line);
+		}
+		else
+		{
+			break;
+		}
+
+	}
+	strcpy(file_buf,cgi_buf);
+	return strlen(cgi_buf);
 }
 
-int get_file_disk(char *uri, unsigned char *file_buf)
+int get_file_disk(char *uri, char *file_buf)
 {
 	int read_count = 0;
-	int fd = open(uri, O_RDONLY);
-
+	int fd;
+	char *uri_file;
+	uri_file = get_uri_file(uri);
+	fd = open(uri_file, O_RDONLY);
 	//php-cgi
 	char *uri_ext = get_url_ext(uri);
 	if(!strcmp(uri_ext, "php") || !strcmp(uri_ext, "PHP"))
 	{
 		read_count = get_php_cgi(uri,file_buf);
+
 		return read_count;
 	}
 	if(fd == -1)
@@ -313,7 +409,7 @@ int get_file_disk(char *uri, unsigned char *file_buf)
 		perror("read() in get_file_disk http_session.c");
 		return -1;
 	}
-	printf("file %s size : %lu , read %d\n", uri, st_size, read_count);
+	printf("file %s size : %lu , read %d\n", uri_file, st_size, read_count);
 	return read_count;
 }
 
@@ -376,7 +472,7 @@ int set_error_information(unsigned char *send_buf, int errorno)
 }
 
 
-int reply_normal_information(unsigned char *send_buf, unsigned char *file_buf, int file_size,  char *mime_type)
+int reply_normal_information(unsigned char *send_buf, char *file_buf, int file_size,  char *mime_type)
 {
 	char *str =  "HTTP/1.1 200 OK\r\nServer:TinyWeb/Huanglin(1.0)\r\nDate:";
 	register int index = strlen(str);

@@ -3,7 +3,7 @@
 #include <netinet/in.h>
 
 #define BACKLOG	20		/* length of listening queue on socket */
-#define PORT	8080	/* web server listening port */
+#define PORT	80	/* web server listening port */
 
 
 /* initialize the socket on server, include below
