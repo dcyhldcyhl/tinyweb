@@ -42,7 +42,10 @@ char *get_uri_query(char *req_header);
 int get_uri_status(char *uri);
 
 /* php_cgi  */
-int get_php_cgi(char *uri, char *file_buf);
+int get_php_cgi(char *uri, char *file_buf,char *recv_buf);
+
+/* fork_cgi  */
+int fork_php_cgi(char *uri, char *file_buf,char *recv_buf);
 
 /* get the mime type of the file request in uri from client's browse */
 char *get_mime_type(char *uri);
@@ -50,7 +53,7 @@ char *get_mime_type(char *uri);
 /* read the file which requested by client in uri ,and store in entity_buf.
    success return bytes readed,error return -1 
 */
-int get_file_disk(char *uri, char *entity_buf);
+int get_file_disk(char *uri, char *entity_buf,char *recv_buf);
 
 /* set http replay header's status:
 	200:ok
@@ -59,9 +62,9 @@ int get_file_disk(char *uri, char *entity_buf);
 */
 int set_rep_status();
 
-int set_error_information(unsigned char *send_buf, int errorno);
+int set_error_information(char *send_buf, int errorno);
 
 
-int reply_normal_information(unsigned char *send_buf, char *file_buf, int file_size, char *mime_type);
+int reply_normal_information( char *send_buf, char *file_buf, int file_size, char *mime_type);
 
 #endif

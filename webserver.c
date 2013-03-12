@@ -12,6 +12,7 @@
 #include "init_socket.h"
 #include "http_session.h"
 
+//非阻塞方式回收退出的子进程
 void handler(int num)
 {
        //接受到的SIGCHLD信号
@@ -32,7 +33,6 @@ int main(int argc, char *argv[])
 	struct sockaddr_in client_addr;
 	bzero(&server_addr, sizeof(struct sockaddr_in));
 	bzero(&client_addr, sizeof(struct sockaddr_in));
-
 	if(argc>1)
 	{
 		port = htons(atoi(argv[1]));
@@ -69,16 +69,16 @@ int main(int argc, char *argv[])
 		else if(pid == 0)
 		{
 			close(listen_fd);
-			printf("pid %d process http session from %s : %d\n", getpid(), inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
+			//printf("pid %d process http session from %s : %d\n", getpid(), inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
 			if(http_session(&connect_fd, &client_addr) == -1)
 			{
 				perror("http_session() error. in webserver.c");
 				shutdown(connect_fd, SHUT_RDWR);
-				printf("pid %d loss connection to %s\n", getpid(), inet_ntoa(client_addr.sin_addr));
+				//printf("pid %d loss connection to %s\n", getpid(), inet_ntoa(client_addr.sin_addr));
 				exit(EXIT_FAILURE);		/* exit from child process, stop this http session  */
 			}
 			close(connect_fd);
-			printf("pid %d close connection to %s\n", getpid(), inet_ntoa(client_addr.sin_addr));
+			//printf("pid %d close connection to %s\n", getpid(), inet_ntoa(client_addr.sin_addr));
 			shutdown(connect_fd, SHUT_RDWR);
 			exit(EXIT_SUCCESS);
 		}
@@ -87,10 +87,8 @@ int main(int argc, char *argv[])
 			perror("fork() error. in webserver.c");
 			exit(EXIT_FAILURE);
 		}
-	
+
 	}
-
-
 	shutdown(listen_fd, SHUT_RDWR);
 	return 0;
 }
