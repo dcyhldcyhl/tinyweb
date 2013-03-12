@@ -386,7 +386,7 @@ char *get_mime_type(char *uri)
 }
 
 /*
- * 获取php-cgi执行的字符数，例外给file_buf赋值
+ * 获取php-cgi执行的字符数，给file_buf赋值
  */
 int get_php_cgi(char *uri, char *file_buf,char *recv_buf)
 {
@@ -522,7 +522,10 @@ int fork_php_cgi(char *uri, char *file_buf,char *recv_buf)
 	return 0;
 
 }
-
+/*
+ * 静态文件从硬盘获取返回字节流
+ * 动态文件调用管道执行
+ */
 int get_file_disk(char *uri, char *file_buf,char *recv_buf)
 {
 	int read_count = 0;
@@ -564,7 +567,9 @@ int get_file_disk(char *uri, char *file_buf,char *recv_buf)
 	return read_count;
 }
 
-
+/*
+ * 错误处理，目前只有404
+ */
 int set_error_information(char *send_buf, int errorno)
 {
 	register int index = 0;
@@ -622,7 +627,9 @@ int set_error_information(char *send_buf, int errorno)
 	return index;
 }
 
-
+/*
+ * 返回组装好的字节流
+ */
 int reply_normal_information(char *send_buf, char *file_buf, int file_size,  char *mime_type)
 {
 
