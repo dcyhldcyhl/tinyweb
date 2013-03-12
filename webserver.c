@@ -54,6 +54,10 @@ int main(int argc, char *argv[])
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 	pid_t pid;
 	signal(SIGCHLD, handler);//回收子进程
+	/*
+	 * 父进程负责接收分配
+	 * 子进程负责逻辑处理
+	 */
 	while(1)
 	{
 		if((connect_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &addrlen)) == -1)

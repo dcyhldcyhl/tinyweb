@@ -13,6 +13,9 @@
 #include "get_time.h"
 #include <sys/wait.h>
 
+/*
+ * http 接收处理流程
+ */
 int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 {
 
@@ -187,6 +190,9 @@ char *get_body(char *req_header)
 	return strdup(uri_buf);
 }
 
+/*
+ * 根据http流，截取url
+ */
 char *get_uri(char *req_header, char *uri_buf)
 {
 	int index = 0;
@@ -217,6 +223,9 @@ char *get_uri(char *req_header, char *uri_buf)
 	return uri_buf;
 }
 
+/*
+ * 解析http头返回url query ?后面的
+ */
 char *get_uri_query(char *req_header)
 {
 	int index = 0;
@@ -243,6 +252,9 @@ char *get_uri_query(char *req_header)
 	return strdup(query_buf);
 }
 
+/*
+ * 根据url头获取method GET/POST
+ */
 char *get_uri_method(char *req_header)
 {
 	int index = 0;
@@ -257,6 +269,9 @@ char *get_uri_method(char *req_header)
 	return strdup(uri_buf);
 }
 
+/*
+ * 解析http协议取出 url头
+ */
 char *get_uri_file(char *req_header)
 {
 	int index = 0;
@@ -275,7 +290,9 @@ char *get_uri_file(char *req_header)
 	return strdup(uri_buf);
 }
 
-
+/*
+ * 判断此文件是否存在硬盘上
+ */
 int get_uri_status(char *uri)
 {
 	char *uri_file;
@@ -294,6 +311,9 @@ int get_uri_status(char *uri)
 	return FILE_OK;
 }
 
+/*
+ * 获取url文件扩展名
+ */
 char *get_url_ext(char *uri)
 {
 	char *url_file = get_uri_file(uri);
@@ -316,6 +336,9 @@ char *get_url_ext(char *uri)
 	return strdup(type_off);
 }
 
+/*
+ * 根据文件类型返回content-type头
+ */
 char *get_mime_type(char *uri)
 {
 	char *type_off = get_url_ext(uri);
@@ -362,13 +385,19 @@ char *get_mime_type(char *uri)
 	return NULL;
 }
 
+/*
+ * 获取php-cgi执行的字符数，例外给file_buf赋值
+ */
 int get_php_cgi(char *uri, char *file_buf,char *recv_buf)
 {
 	int num;
 	num = fork_php_cgi(uri,file_buf,recv_buf);
 	return num;
 }
-
+/*
+ * 通过管道与php-cgi通信，以后单独抽出个文件，做成插件
+ * 以后会支持fastcgi scgi 努力
+ */
 int fork_php_cgi(char *uri, char *file_buf,char *recv_buf)
 {
 	FILE *fp;
@@ -491,35 +520,6 @@ int fork_php_cgi(char *uri, char *file_buf,char *recv_buf)
 		return strlen(file_buf);
 	}
 	return 0;
-	/*
-	fp = popen("/usr/bin/php-cgi","r");
-	while(1)
-	{
-		fgets(line,sizeof(line),fp);
-		if(i<2)
-		{
-			if(strstr(line,powerd)!=0)
-			{
-				continue;
-			}
-			if(strstr(line,content_type)!=0)
-			{
-				continue;
-			}
-		}
-		i++;
-		if(!feof(fp))
-		{
-			strcat(cgi_buf,line);
-		}
-		else
-		{
-			break;
-		}
-
-	}
-	strcpy(file_buf,cgi_buf);
-	*/
 
 }
 
