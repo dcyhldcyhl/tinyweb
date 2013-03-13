@@ -22,8 +22,7 @@
 #define	FILE_MAX_SIZE		1048576		/* 1MB the max siee of file read from hard disk */
 #define WEB_ROOT			"webroot/"
 
-#define ALLOW				"Allow:GET"	/* the server allow GET request method*/
-#define	SERVER				"Server:tinyweb(0.1 Alpha)/Linux"
+#define	SERVER				"Server:tinyweb(1.0 Alpha)/Linux"
 
 
 /* if the connect protocol is http then this function deal with it  */

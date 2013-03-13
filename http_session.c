@@ -92,7 +92,7 @@ int http_session(int *connect_fd, struct sockaddr_in *client_addr)
 						else
 						{
 							uri_status = get_uri_status(uri_buf);
-							printf("Get_URL:%s\n", uri_buf);
+							printf("URL:%s\n", uri_buf);
 							switch(uri_status)
 							{
 								case FILE_OK:
@@ -633,24 +633,26 @@ int set_error_information(char *send_buf, int errorno)
 int reply_normal_information(char *send_buf, char *file_buf, int file_size,  char *mime_type)
 {
 
-	char *str =  "HTTP/1.1 200 OK\r\nServer:TinyWeb/Huanglin(1.0)\r\nDate:";
+	char *str =  "HTTP/1.1 200 OK\r\n";
 	register int index = strlen(str);
+	int len;
+	char time_buf[TIME_BUFFER_SIZE];
 
 	memcpy(send_buf, str, index);
-
-	char time_buf[TIME_BUFFER_SIZE];
 	memset(time_buf, '\0', sizeof(time_buf));
+	len = strlen(SERVER);
+	memcpy(send_buf + index, SERVER, len);
+	index += len;
+
+	memcpy(send_buf + index, "\r\nDate:", 7);
+	index += 7;
 	str = get_time_str(time_buf);
-	int len = strlen(time_buf);
+	len = strlen(time_buf);
 	memcpy(send_buf + index, time_buf, len);
 	index += len;
 
-	len = strlen(ALLOW);
-	memcpy(send_buf + index, ALLOW, len);
-	index += len;
-
-	memcpy(send_buf + index, "\r\nContent-Type:", 15);
-	index += 15;
+	memcpy(send_buf + index, "Content-Type:", 13);
+	index += 13;
 	len = strlen(mime_type);
 	memcpy(send_buf + index, mime_type, len);
 	index += strlen(mime_type);
@@ -667,6 +669,9 @@ int reply_normal_information(char *send_buf, char *file_buf, int file_size,  cha
 	index += 4;
 
 	memcpy(send_buf + index, file_buf, file_size);
+
+	//printf("%s",send_buf);
+
 	//strcat(send_buf,file_buf);
 
 	index += file_size;
